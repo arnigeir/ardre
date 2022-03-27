@@ -8,25 +8,23 @@
 
 
 
-RotaryEncoderIRQ *rotaryEncoderIRQ; 
+RotaryEncoderIRQ rotaryEncoderIRQ = RotaryEncoderIRQ(clkPIN,dtPIN,btnPIN,bounceDelay); 
 
 void setup() {
   Serial.begin(9600);
-  RotaryEncoderIRQ re = RotaryEncoderIRQ(clkPIN,dtPIN,btnPIN,bounceDelay);
-  rotaryEncoderIRQ = &re;
-  rotaryEncoderIRQ->Init();
+  rotaryEncoderIRQ.Init();
 }
 
 
 ISR(PCINT2_vect){
-  rotaryEncoderIRQ->HandleIRQ();
+  rotaryEncoderIRQ.HandleIRQ();
 }
 
 
 
 void loop() {
   
-  ROTARY_ENCODER_EVENT_TYPE event = rotaryEncoderIRQ->GetEvent();
+  ROTARY_ENCODER_EVENT_TYPE event = rotaryEncoderIRQ.GetEvent();
 
   if(event == ROTARY_ENCODER_EVENT_CW) Serial.println("CW");
   else if (event == ROTARY_ENCODER_EVENT_CCW)  Serial.println("CCW");

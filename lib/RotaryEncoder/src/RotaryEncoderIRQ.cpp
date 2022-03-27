@@ -1,27 +1,7 @@
 #include <Arduino.h>
 #include "RotaryEncoderIRQ.h"
 /***
- * 03.21/AGS
- * Info sources :
- * Dev platform for interupt driven Rotary Encoder from https://www.tutorialspoint.com/arduino/arduino_interrupts.htm
- * Pin interrupt https://www.electrosoftcloud.com/en/pcint-interrupts-on-arduino/
- * 
- * Rotary encoder signals:
- * 
- *   CLK     __---------________---------________
- *   DT     _______---------________---------____ 
- *   STATE   0 | 1 | 3  | 2 | 0 | 1 | 3  | 2 | 0 
- *   INT       *   *    *   *   *   *    *   *
- *  
- * State changes and direction 
- * 
- *           States       
- *   CCW  :  1-0-2-3
- *   CW   :  2-0-1-3
- * 
- * A change in encoder state occurs when State=3 and accumulated sum of states since last State=3 is 6
- * ie 1-0-2-3 ; current state is 3,previous states sums to 6 and last state is 2 => CCW
- * 
+ * (c)2022 Arni Geir Sigurdsson (arni.geir.sigurdsson@gmail.com) 
  ***/
 enum  cpicr_interrupt_port{
                 PCICR_PORT_MASK_NONE = 0,

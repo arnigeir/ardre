@@ -2,16 +2,34 @@
 #define ROTARY_ENCODER_IRQ_H
 
 /*
-(c)Arni Geir Sigurdsson (arni.geir.sigurdsson@gmail.com) 2022
+(c)2022 Arni Geir Sigurdsson (arni.geir.sigurdsson@gmail.com) 
 
 Rotary encoder interrupt driver
 
-Uses 34b RAM and about 500bb FLASH
+Uses 34 bytes of RAM and about 500 bytes of FLASH memory
 
-EXAMPLE
+Rotary encoder signals:
+
+  CLK     __---------________---------________-------.........
+  DT     _______---------________---------______-----.........
+  BUTTOM -----------------------------------------_______-----                                   
+  STATE   0 | 1 | 3  | 2 | 0 | 1 | 3  | 2 | 0 | 3 |
+  INT       *   *    *   *   *   *    *   *   *   *      *   
+
+  EVENT:         CW               CW           CW  BUTTON
+State changes and direction 
+
+          States       
+  CCW  :  1-0-2-3
+  CW   :  2-0-1-3
+
+A change in encoder state occurs when State=3 and accumulated sum of states since last State=3 is 6
+ie 1-0-2-3 ; current state is 3,previous states sums to 6 and last state is 2 => CCW
+
+Example use
 ===========
 
-// Enable interrupts for port D
+// NOTE : All 3 pins must be on either B or D port
 // dt pin 4
 // clk pin 5
 // sw pin 6
@@ -19,38 +37,41 @@ EXAMPLE
 
 #define dtPin 4
 #define clkPin 5
-#define swPin 6
-#define reDebounceDelay_mSec 5
+#define buttonPin 6
+#define debounceDelay_mSec 5
 
-RotaryEncoderIRQ rotaryEncoderIRQ = RotaryEncoderIRQ(RotaryEncoderIRQ::IRQ_PORTD,dtPin,clkPin,swPin,reDebounceDelay_mSec);
+RotaryEncoderIRQ *rotaryEncoderIRQ=nullptr;
 
 void setup() {
   Serial.begin(9600);
-  rotaryEncoderIRQ.Init();
+  RotaryEncoderIRQ re = RotaryEncoderIRQ(clkPin,dtPin,buttonPin,reDebounceDelay_mSec); 
+  rotaryEncoderIRQ = &re;
+  rotaryEncoderIRQ->Init();
 }
 
   
 ISR(PCINT2_vect){
-  rotaryEncoderIRQ.HandleIRQ();
+  rotaryEncoderIRQ->HandleIRQ();
 }
 
 
 void loop() {
-  int event = rotaryEncoderIRQ.GetEvent();
-  if(event ){
-    if(event == RotaryEncoderIRQ::ROTARYENCODER_CW) Serial.println("CW");
-    else if (event == RotaryEncoderIRQ::ROTARYENCODER_CCW)  Serial.println("CCW");
-    event = 0;
-  }
+  ROTARY_ENCODER_EVENT_TYPE event = rotaryEncoderIRQ->GetEvent();
+
+  if(event == ROTARY_ENCODER_EVENT_CW) Serial.println("CW");
+  else if (event == ROTARY_ENCODER_EVENT_CCW)  Serial.println("CCW");
+  else if (event == ROTARY_ENCODER_EVENT_BUTTON) Serial.println("CLICK");
+
   delay(100);
+
+Info sources :
+  Dev platform for interupt driven Rotary Encoder from https://www.tutorialspoint.com/arduino/arduino_interrupts.htm
+  Pin interrupt https://www.electrosoftcloud.com/en/pcint-interrupts-on-arduino/
 
 */
 
 
-typedef enum  {
-                ROTARY_ENCODER_PORTB = 1,
-                ROTARY_ENCODER_PORTD = 4,
-              } ROTARY_ENCODER_PORT_TYPE;
+
 typedef enum {
               ROTARY_ENCODER_EVENT_NONE=0,
               ROTARY_ENCODER_EVENT_BUTTON,
@@ -68,17 +89,16 @@ class RotaryEncoderIRQ{
     void Init();                                                            //call init in the setup function
     void HandleIRQ();                                                       //call this function from the interrupt routine
     ROTARY_ENCODER_EVENT_TYPE GetEvent();      //call this from main loop to get last buffered encoder value
-    //void ResetEvent();   //call this after event has been consumed and IRQ routine buffer cleared for next event
 
     //disable copy constructor and assignment constructor ...
-    //RotaryEncoderIRQ(const RotaryEncoderIRQ&)  =  delete;  
-    //RotaryEncoderIRQ& operator= (const RotaryEncoderIRQ&) = delete;
+    // RotaryEncoderIRQ(const RotaryEncoderIRQ&)  =  delete;  
+    // RotaryEncoderIRQ& operator= (const RotaryEncoderIRQ&) = delete;
 
                                                
  private:
    RotaryEncoderIRQ();  //no default constructor
 
-   ROTARY_ENCODER_PORT_TYPE _irqPort;
+   //ROTARY_ENCODER_PORT_TYPE _irqPort;
    volatile ROTARY_ENCODER_EVENT_TYPE _event;
 
    int _oldRotaryEncoderState;
@@ -94,8 +114,6 @@ class RotaryEncoderIRQ{
    int _btnPinMask;
    int _pcicrPortMask;
    int _debounceDelayMilliSec;
-
-   //int *inputPort;
 };
 
 #endif
