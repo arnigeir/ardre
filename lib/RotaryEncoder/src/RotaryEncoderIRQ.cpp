@@ -2,23 +2,25 @@
 #include "RotaryEncoderIRQ.h"
 /***
  * 03.21/AGS
- * Dev platform for interupt driven Rotary Encoder 
- * from https://www.tutorialspoint.com/arduino/arduino_interrupts.htm
- *
+ * Info sources :
+ * Dev platform for interupt driven Rotary Encoder from https://www.tutorialspoint.com/arduino/arduino_interrupts.htm
  * Pin interrupt https://www.electrosoftcloud.com/en/pcint-interrupts-on-arduino/
  * 
- *          *       *       *       *
- * B0   __----____----____----____----
- * B1   ____----____----____----____--
- *        ' ' ' ' ' ' ' ' ' ' ' ' ' '
+ * Rotary encoder signals:
  * 
- *   * : resting state
- *   ' : interrupt on B0
+ *   CLK     __---------________---------________
+ *   DT     _______---------________---------____ 
+ *   STATE   0 | 1 | 3  | 2 | 0 | 1 | 3  | 2 | 0 
+ *   INT       *   *    *   *   *   *    *   *
+ *  
+ * State changes and direction 
  * 
- *   
- * CW  :  1-0-2-3
- * CCW :  2-0-1-3
+ *           States       
+ *   CCW  :  1-0-2-3
+ *   CW   :  2-0-1-3
  * 
+ * A change in encoder state occurs when State=3 and accumulated sum of states since last State=3 is 6
+ * ie 1-0-2-3 ; current state is 3,previous states sums to 6 and last state is 2 => CCW
  * 
  ***/
 enum  cpicr_interrupt_port{
@@ -35,9 +37,6 @@ RotaryEncoderIRQ::RotaryEncoderIRQ(int clkPin,int dtPin,int btnPin,int debounceD
   if( (clkPin>=0 && clkPin <=7) && (dtPin>=0 && dtPin <=7) && btnPin>=0 && btnPin <=7) _pcicrPortMask  = PCICR_PORT_MASK_PORTD;
   else if( (clkPin > 7 && clkPin <=13) && (dtPin > 7 && dtPin <=13) && (btnPin > 7 && btnPin <=13)) _pcicrPortMask = PCICR_PORT_MASK_PORTB;
 
-  //Serial.print("Port mask = ");
-  //Serial.println(_pcicrPortMask);
-
   //initialize the 
   _dtPin = dtPin;
   _clkPin = clkPin;
@@ -48,11 +47,10 @@ RotaryEncoderIRQ::RotaryEncoderIRQ(int clkPin,int dtPin,int btnPin,int debounceD
   _clkPinMask = 1 << clkPin;
   _dtPinMask = 1 << dtPin;
   _btnPinMask = 1 << btnPin;
-  //_pinsMask = _dtPinMask | _clkPinMask | _btnPinMask;   //interrupt on all pins transient
   //initialize encoder state
   _event = ROTARY_ENCODER_EVENT_NONE;
   _rotaryEncoderStateSum = _oldRotaryEncoderState = _newRotaryEncoderState = 0;
-  _btnCntLow = _btnCntHigh = _btnState = 0; 
+  _oldButtonState =  0; 
 };
 
 void RotaryEncoderIRQ::Init(){
@@ -60,7 +58,6 @@ void RotaryEncoderIRQ::Init(){
   //if pins are not correctly connected then do nothing
   if(_pcicrPortMask == PCICR_PORT_MASK_NONE) return;
 
-  //Serial.println("Init");
   pinMode(_dtPin,INPUT);
   pinMode(_clkPin,INPUT);
   pinMode(_btnPin,INPUT);
@@ -70,10 +67,8 @@ void RotaryEncoderIRQ::Init(){
 
   //set the pins that cause interrupt
   if(_pcicrPortMask == PCICR_PORT_MASK_PORTB){
-    //Serial.println("IR on port B");
     PCMSK0 |= _dtPinMask | _clkPinMask | _btnPinMask; 
   }else if (_pcicrPortMask == PCICR_PORT_MASK_PORTD){
-    //Serial.println("IR on port D");
     PCMSK2 |= _dtPinMask | _clkPinMask | _btnPinMask;   
   }
 }
@@ -81,23 +76,25 @@ void RotaryEncoderIRQ::Init(){
 
 
 void RotaryEncoderIRQ::HandleIRQ(){
-  int inputByte = 0;
-  //Serial.println("interrupt");
-  if(_event != ROTARY_ENCODER_EVENT_NONE) return;  //last event has not been read - ignore interrupt
 
+  int inputByte = 0;
+  int buttonPressed = 0;
+  if(_event != ROTARY_ENCODER_EVENT_NONE){
+     return;  //last event has not been read - ignore interrupt
+  }
 
   //wait a little for the contacts to debounce
   delayMicroseconds(_debounceDelayMilliSec);
   inputByte = (_pcicrPortMask == PCICR_PORT_MASK_PORTB) ? PINB : PIND;
-  //Serial.println(inputByte);
+
+
+  // -------- handle rotary encoder state changes
 
   //read clk and dt pins so that B0 = clk & B1 = dt 
   _newRotaryEncoderState = (inputByte & _dtPinMask) >> (_dtPin-1) | (inputByte & _clkPinMask) >> _clkPin;
-  //Serial.print("roState = ");
-  //Serial.println(_newRotaryEncoderState);
+  buttonPressed = ! ( (inputByte & _btnPinMask)  >> _btnPin);
 
   if(_newRotaryEncoderState != _oldRotaryEncoderState){
-    //Serial.println( nState);
     _rotaryEncoderStateSum += _newRotaryEncoderState;
     if(_newRotaryEncoderState == 3 ){
       if(_rotaryEncoderStateSum == 6){
@@ -107,6 +104,14 @@ void RotaryEncoderIRQ::HandleIRQ(){
     }
   };
   _oldRotaryEncoderState = _newRotaryEncoderState;
+
+  // handle button state changes 
+  if(buttonPressed) {
+    _event = ROTARY_ENCODER_EVENT_BUTTON;
+    _oldButtonState = buttonPressed;
+  }else{
+    _oldButtonState = 0;
+  }
 }
 
 
@@ -115,5 +120,6 @@ ROTARY_ENCODER_EVENT_TYPE RotaryEncoderIRQ::GetEvent(){
   _event = ROTARY_ENCODER_EVENT_NONE;
   return e;
 }
+
 
 

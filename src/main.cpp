@@ -8,7 +8,7 @@
 
 
 
-RotaryEncoderIRQ *rotaryEncoderIRQ; // = RotaryEncoderIRQ(clkPIN,dtPIN,btnPIN,bounceDelay);
+RotaryEncoderIRQ *rotaryEncoderIRQ; 
 
 void setup() {
   Serial.begin(9600);
@@ -27,9 +27,10 @@ ISR(PCINT2_vect){
 void loop() {
   
   ROTARY_ENCODER_EVENT_TYPE event = rotaryEncoderIRQ->GetEvent();
-  
+
   if(event == ROTARY_ENCODER_EVENT_CW) Serial.println("CW");
   else if (event == ROTARY_ENCODER_EVENT_CCW)  Serial.println("CCW");
+  else if (event == ROTARY_ENCODER_EVENT_BUTTON) Serial.println("CLICK");
 
   delay(100);
   

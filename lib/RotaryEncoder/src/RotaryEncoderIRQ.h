@@ -53,7 +53,7 @@ typedef enum  {
               } ROTARY_ENCODER_PORT_TYPE;
 typedef enum {
               ROTARY_ENCODER_EVENT_NONE=0,
-              ROTARY_ENCODER_EVENT_SWITCH,
+              ROTARY_ENCODER_EVENT_BUTTON,
               ROTARY_ENCODER_EVENT_CW,
               ROTARY_ENCODER_EVENT_CCW
               } ROTARY_ENCODER_EVENT_TYPE;
@@ -73,22 +73,29 @@ class RotaryEncoderIRQ{
     //disable copy constructor and assignment constructor ...
     //RotaryEncoderIRQ(const RotaryEncoderIRQ&)  =  delete;  
     //RotaryEncoderIRQ& operator= (const RotaryEncoderIRQ&) = delete;
+
                                                
  private:
    RotaryEncoderIRQ();  //no default constructor
 
-   int _pcicrPortMask;
-
-   int _btnState,_btnPin,_btnPinMask,_btnCntLow,_btnCntHigh;
    ROTARY_ENCODER_PORT_TYPE _irqPort;
-
-   int _rotaryEncoderStateSum;
-   int _oldRotaryEncoderState,_newRotaryEncoderState;
-   int _dtPin,_clkPin;
-   int _dtPinMask,_clkPinMask,_pinsMask;
-   int _debounceDelayMilliSec;
    volatile ROTARY_ENCODER_EVENT_TYPE _event;
-   int *inputPort;
+
+   int _oldRotaryEncoderState;
+   int _newRotaryEncoderState;
+   int _rotaryEncoderStateSum;
+   //int _newButtonState;
+   int _oldButtonState;
+   int _dtPin;
+   int _clkPin;
+   int _btnPin;
+   int _dtPinMask;
+   int _clkPinMask;
+   int _btnPinMask;
+   int _pcicrPortMask;
+   int _debounceDelayMilliSec;
+
+   //int *inputPort;
 };
 
 #endif
