@@ -1,8 +1,8 @@
 #include <Arduino.h>
 #include "RotaryEncoderIRQ.h"
 
-#define clkPIN 4
-#define dtPIN 5 
+#define clkPIN 3
+#define dtPIN 4
 #define btnPIN 6
 #define bounceDelay 5
 
@@ -30,7 +30,7 @@ void loop() {
   else if (event == ROTARY_ENCODER_EVENT_CCW)  Serial.println("CCW");
   else if (event == ROTARY_ENCODER_EVENT_BUTTON) Serial.println("CLICK");
 
-  delay(100);
+  delay(100);  //simulates a long running blocking process
   
 
 }
